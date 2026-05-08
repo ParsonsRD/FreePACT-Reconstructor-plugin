@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "freepact_reco"
+version = "0.1.0"
+description = "A custom ctapipe reconstructor plugin"
+dependencies = [
+    "ctapipe>=0.17.0",
+    "tensorflow",
+    "iminuit",
+    "astropy",
+    "numba",
+    "scipy",
+]
+
+[project.entry-points."ctapipe_reco"]
+FreePACTReconstructor = "freepact_reco.reconstructor:FreePACTReconstructor"
+ImPACTReconstructor = "freepact_reco.impact:ImPACTReconstructor"
