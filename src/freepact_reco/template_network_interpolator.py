@@ -9,16 +9,18 @@ import numpy.ma as ma
 
 from ctapipe.exceptions import OptionalDependencyMissing
 
-try:
-    import tensorflow as tf
+import keras
+from keras import ops
 
-    tf_function = tf.function
-except ModuleNotFoundError:
-    tf = None
 
-    # dummy decorator
-    def tf_function(f):
-        return f
+def maybe_tf_function(f):
+    if keras.backend.backend() == "tensorflow":
+        try:
+            import tensorflow as tf
+            return tf.function(f)
+        except ImportError:
+            return f
+    return f
 
 
 from .unstructured_interpolator import UnstructuredInterpolator
@@ -348,8 +350,8 @@ def load_prediction_files_filtered(directory):
                 float(match.group("offset")),
             )
             abs_path = os.path.abspath(os.path.join(directory, filename))
-            model = tf.keras.models.load_model(abs_path)
-            model.layers[-1].activation = tf.keras.activations.linear
+            model = keras.models.load_model(abs_path)
+            model.layers[-1].activation = keras.activations.get("linear")
             result[key] = model
     return result
 
@@ -377,28 +379,15 @@ def custom_symlog(value, linear_threshold=10.0):
     return value
 
 
-@tf_function
+@maybe_tf_function
 def evaluate_model(model, parameters):
     """
-    Evaluate the model with the given parameters. TF decorator used to
-    execute so model is compiled into a callable TensorFlow graph.
-
-    Parameters
-    ----------
-    model: tf.keras.Model
-        The model to evaluate
-    parameters: ndarray
-        The parameters to pass to the model
-
-    Returns
-    -------
-    tf. Tensor
-        The output of the model
+    Evaluate the model with the given parameters.
     """
     return model(parameters)
 
 
-@tf_function
+@maybe_tf_function
 def evaluate_model_interpolate(
     model_ul,
     model_uu,
@@ -413,38 +402,7 @@ def evaluate_model_interpolate(
     parameters,
 ):
     """
-    Evaluate the model with the given parameters in an interpolated grid. TF decorator used to
-    execute so model is compiled into a callable TensorFlow graph.
-
-    Parameters
-    ----------
-    model_ul: tf.keras.Model
-        The model to evaluate for the upper left corner
-    model_uu: tf.keras.Model
-        The model to evaluate for the upper right corner
-    model_lu: tf.keras.Model
-        The model to evaluate for the lower right corner
-    model_ll: tf.keras.Model
-        The model to evaluate for the lower left corner
-    zenith: float
-        The zenith angle to evaluate
-    azimuth: float
-        The azimuth angle to evaluate
-    zenith_u: float
-        The upper zenith bound for interpolation
-    zenith_l: float
-        The lower zenith bound for interpolation
-    azimuth_u: float
-        The upper azimuth bound for interpolation
-    azimuth_l: float
-        The lower azimuth bound for interpolation
-    parameters: ndarray
-        The parameters to pass to the model
-
-    Returns
-    -------
-    tf.Tensor
-        The output of the model
+    Evaluate the model with the given parameters in an interpolated grid.
     """
     v_ll = model_ll(parameters)
     v_ul = model_ul(parameters)
@@ -474,14 +432,6 @@ class FreePACTInterpolator(BaseTemplate):
         """
 
         super().__init__()
-        if tf is None:
-            raise OptionalDependencyMissing("tensorflow")
-
-        try:
-            tf.config.set_visible_devices([], "GPU")
-        except RuntimeError:
-            # Device already initialized, ignore
-            pass
 
         data_input_dict = load_prediction_files_filtered(directory)
 
@@ -571,32 +521,32 @@ class FreePACTInterpolator(BaseTemplate):
             self.interpolator[zu][au],
             self.interpolator[zl][au],
             self.interpolator[zl][al],
-            tf.convert_to_tensor(
-                zenith * np.ones((points.shape[0], 1)), dtype=tf.float32
+            ops.convert_to_tensor(
+                zenith * np.ones((points.shape[0], 1)), dtype="float32"
             ),
-            tf.convert_to_tensor(
-                azimuth * np.ones((points.shape[0], 1)), dtype=tf.float32
+            ops.convert_to_tensor(
+                azimuth * np.ones((points.shape[0], 1)), dtype="float32"
             ),
-            tf.convert_to_tensor(
+            ops.convert_to_tensor(
                 self.zeniths[zu] * np.ones((points.shape[0], 1)),
-                dtype=tf.float32,
+                dtype="float32",
             ),
-            tf.convert_to_tensor(
+            ops.convert_to_tensor(
                 self.zeniths[zl] * np.ones((points.shape[0], 1)),
-                dtype=tf.float32,
+                dtype="float32",
             ),
-            tf.convert_to_tensor(
+            ops.convert_to_tensor(
                 self.azimuths[au] * np.ones((points.shape[0], 1)),
-                dtype=tf.float32,
+                dtype="float32",
             ),
-            tf.convert_to_tensor(
+            ops.convert_to_tensor(
                 self.azimuths[al] * np.ones((points.shape[0], 1)),
-                dtype=tf.float32,
+                dtype="float32",
             ),
-            tf.convert_to_tensor(points),
+            ops.convert_to_tensor(points, dtype="float32"),
         )
 
-        return value.numpy()  # np.asarray(value)
+        return np.asarray(value)
 
     def _evaluate_interpolator(
         self, zenith_bin, azimuth_bin, interpolation_array, points
@@ -659,7 +609,7 @@ class FreePACTInterpolator(BaseTemplate):
         )
 
         if self.no_zenaz:
-            interpolated_value = evaluate_model(self.interpolator, array).numpy()
+            interpolated_value = np.asarray(evaluate_model(self.interpolator, array))
             interpolated_value = interpolated_value.reshape(shape)
         else:
             interpolated_value = self.perform_interpolation(

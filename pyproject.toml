@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A custom ctapipe reconstructor plugin"
 dependencies = [
     "ctapipe>=0.17.0",
-    "tensorflow",
+    "keras>=3.0.0",
     "iminuit",
     "astropy",
     "numba",

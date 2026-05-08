@@ -5,20 +5,17 @@ Tool for training a Pixel Classifier using a Keras MLP.
 import astropy.units as u
 import numpy as np
 
-try:
-    import tensorflow as tf
-    from tensorflow.keras.callbacks import (
-        CSVLogger,
-        EarlyStopping,
-        ModelCheckpoint,
-        ReduceLROnPlateau,
-    )
-    from tensorflow.keras.layers import Dense
-    from tensorflow.keras.models import Sequential, load_model
-    from tensorflow.keras.optimizers import Adam
-
-except ImportError:
-    tf = None
+import keras
+from keras import ops
+from keras.callbacks import (
+    CSVLogger,
+    EarlyStopping,
+    ModelCheckpoint,
+    ReduceLROnPlateau,
+)
+from keras.layers import Dense
+from keras.models import Sequential, load_model
+from keras.optimizers import Adam
 
 from ctapipe.core import Tool
 from ctapipe.core.traits import Bool, Float, Int, IntTelescopeParameter, List, Path
@@ -152,17 +149,28 @@ class TrainFreePACT(Tool):
 
     def setup(self):
         """Initialize components."""
-        # Check for tensorflow
-        if tf is None:
-            raise OptionalDependencyMissing("tensorflow")
 
         if self.max_threads is not None:
             self.log.info("Setting maximum number of threads to %d", self.max_threads)
-            tf.config.threading.set_inter_op_parallelism_threads(self.max_threads)
+            # Threading config is backend specific, but for TF backend:
+            try:
+                import tensorflow as tf
+                tf.config.threading.set_inter_op_parallelism_threads(self.max_threads)
+                tf.config.threading.set_intra_op_parallelism_threads(self.max_threads)
+            except (ImportError, RuntimeError):
+                pass
 
         if self.no_gpu:
             self.log.info("Disabling GPU usage")
-            tf.config.set_visible_devices([], "GPU")
+            # Device config is backend specific, but for TF backend:
+            try:
+                import tensorflow as tf
+                tf.config.set_visible_devices([], "GPU")
+            except (ImportError, RuntimeError):
+                pass
+            # Also set environment variable for other backends
+            import os
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
         if not self.input_url:
             self.log.critical("Specifying input file(s) is required.")
@@ -244,7 +252,7 @@ class TrainFreePACT(Tool):
                 verbose=1,
                 callbacks=callbacks,
             )
-            model.layers[-1].activation = tf.keras.activations.linear
+            model.layers[-1].activation = keras.activations.get("linear")
 
             # Save model
             # Construct a filename for this telescope type
@@ -532,7 +540,7 @@ class TrainFreePACT(Tool):
         self, input_shape, layer_number=10, layer_neurons=50, activation="swish"
     ):
         """Build Keras MLP."""
-        from tensorflow.keras.layers import Input
+        from keras.layers import Input
 
         layers = [Input(shape=input_shape, name="input_1")]
 
