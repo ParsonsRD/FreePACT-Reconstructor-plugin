@@ -14,3 +14,15 @@ src/freepact_reco.egg-info/PKG-INFO
 src/freepact_reco.egg-info/requires.txt
 src/freepact_reco.egg-info/SOURCES.txt
 src/freepact_reco.egg-info/top_level.txt
+ctapipe-train-freepact.provenance.log
+build/lib/freepact_reco/__init__.py
+build/lib/freepact_reco/freepact.py
+build/lib/freepact_reco/impact_utilities.py
+build/lib/freepact_reco/impact.py
+build/lib/freepact_reco/reconstructor.py
+build/lib/freepact_reco/template_network_interpolator.py
+build/lib/freepact_reco/train_freepact.py
+build/lib/freepact_reco/unstructured_interpolator.py
+build/lib/freepact_reco/test/test_freepact.py
+build/lib/freepact_reco/test/test_impact.py
+src/freepact_reco/__pycache__/train_freepact.cpython-312.pyc

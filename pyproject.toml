@@ -15,6 +15,9 @@ dependencies = [
     "scipy",
 ]
 
+[project.scripts]
+ctapipe-train-freepact = "freepact_reco.train_freepact:main"
+
 [project.entry-points."ctapipe_reco"]
 FreePACTReconstructor = "freepact_reco.reconstructor:FreePACTReconstructor"
 ImPACTReconstructor = "freepact_reco.impact:ImPACTReconstructor"
